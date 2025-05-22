@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Avatar Corporativo v4.0.7</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-preload { font-family: 'Archivo', sans-serif; position: absolute; left: -9999px; opacity: 0; }
+        .font-preload-barlow { font-family: 'Barlow', sans-serif; position: absolute; left: -9999px; opacity: 0; }
+        #avatarCanvas.interactive { cursor: grab; }
+        #avatarCanvas.dragging { cursor: grabbing; }
+        .placeholder-text {
+            color: #a0aec0; /* Cinza médio (Tailwind gray-500) */
+        }
+        select option[disabled] {
+            color: #a0aec0;
+        }
+        .visually-hidden-but-takes-space {
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+         .visible-and-interactive {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+        .opacity-transition {
+            transition: opacity 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="font-preload">.</div>
+    <div class="font-preload-barlow">.</div>
+
+    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="flex flex-col justify-between"> 
+                <div class="space-y-4"> 
+                    <div>
+                        <label for="nome" class="block text-sm font-medium text-gray-700 mb-1">Nome Completo:</label>
+                        <input type="text" id="nome" name="nome" value="(Insira o primeiro e último nome. Ex: João Oliveira)" maxlength="20" class="placeholder-text mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="setor" class="block text-sm font-medium text-gray-700 mb-1">Setor:</label>
+                        <select id="setor" name="setor" class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            <option value="" disabled selected>(Selecione Aqui)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filial" class="block text-sm font-medium text-gray-700 mb-1">Filial:</label>
+                        <select id="filial" name="filial" class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                             <option value="" disabled selected>(Selecione Aqui)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Empresa:</label>
+                        <div id="empresaRadioGroup" class="mt-1 space-y-2 md:space-y-0 md:space-x-4 md:flex">
+                            <div class="flex items-center">
+                                <input id="empresaIrapuru" name="empresa" type="radio" value="Irapuru" checked class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                                <label for="empresaIrapuru" class="ml-2 block text-sm text-gray-900">
+                                    Irapuru
+                                </label>
+                            </div>
+                            <div class="flex items-center">
+                                <input id="empresaEVR" name="empresa" type="radio" value="EVR" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300">
+                                <label for="empresaEVR" class="ml-2 block text-sm text-gray-900">
+                                    EVR
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="fotoUploadSection" class="mt-4"> <label for="foto" class="block text-sm font-medium text-gray-700 mb-1">Sua Foto (Opcional):</label>
+                        <input id="foto" name="foto" type="file" accept="image/*" class="block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-md file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-indigo-50 file:text-indigo-700
+                            hover:file:bg-indigo-100
+                        ">
+                    </div>
+                </div>
+                <div id="actionButtonsContainer" class="mt-6 space-y-3 visually-hidden-but-takes-space opacity-transition"> 
+                    <button id="baixarPNG" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-1.5 px-3 text-xs rounded-md shadow-md transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                        Baixar o Avatar
+                    </button>
+                    <button id="limparFotoBtn" title="Limpar foto" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-1.5 px-3 text-xs rounded-md shadow-md transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2">
+                        Limpar Foto
+                    </button>
+                </div>
+            </div>
+
+            <div id="previewColumnContent" class="flex flex-col items-center justify-start bg-gray-200 p-4 rounded-lg relative"> 
+                <div id="avatarCanvasContainer" class="relative w-[360px] h-[360px] mt-0"> 
+                    <canvas id="avatarCanvas" width="360" height="360" class="border border-gray-400 rounded-md shadow-lg bg-white"></canvas>
+                </div>
+                
+                <div id="avatarDisplayInfo" class="w-full flex flex-col items-center mt-auto pb-1"> 
+                    <p id="uploadInstructionText" class="text-xs text-gray-500 mt-1">Clique no botão "Sua Foto" ao lado para selecionar uma imagem.</p>
+                    <p id="dragZoomInstruction" class="text-xs text-center text-gray-500 visually-hidden-but-takes-space opacity-transition">Clique e arraste na prévia para mover.<br>Use o scroll para zoom.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const nomeInput = document.getElementById('nome');
+        const setorSelect = document.getElementById('setor'); 
+        const filialSelect = document.getElementById('filial'); 
+        const empresaRadioGroup = document.getElementById('empresaRadioGroup');
+        const fotoInput = document.getElementById('foto');
+        const baixarPNGButton = document.getElementById('baixarPNG');
+        const canvas = document.getElementById('avatarCanvas');
+        const ctx = canvas.getContext('2d');
+        const dragZoomInstruction = document.getElementById('dragZoomInstruction');
+        const limparFotoBtn = document.getElementById('limparFotoBtn'); 
+        const avatarDisplayInfo = document.getElementById('avatarDisplayInfo'); 
+        const actionButtonsContainer = document.getElementById('actionButtonsContainer'); 
+        const fotoUploadSection = document.getElementById('fotoUploadSection');
+        const uploadInstructionText = document.getElementById('uploadInstructionText'); 
+
+        const CANVAS_REAL_WIDTH = 720;
+        const CANVAS_REAL_HEIGHT = 720;
+        const CANVAS_DISPLAY_WIDTH = 360; 
+        const CANVAS_DISPLAY_HEIGHT = 360;
+
+        const NOME_PLACEHOLDER = "(Insira o primeiro e último nome. Ex: João Oliveira)";
+
+        let fotoObjeto = new Image();
+        let bgImage = new Image(); 
+        
+        let templateIrapuru = new Image();
+        templateIrapuru.src = 'avatar_IRAPURU.png'; 
+        
+        let templateEVR = new Image();
+        templateEVR.src = 'avatar_EVR.png'; 
+
+        bgImage.src = 'bg.png'; 
+
+        let photoPanX = 0, photoPanY = 0, photoZoom = 1; 
+        let isDraggingPhoto = false, dragStartX, dragStartY, initialPanX, initialPanY;
+        let lastTouchDistance = null;
+
+        const BG_IMAGE_DEFAULT_ZOOM = 1; 
+        const BG_IMAGE_DEFAULT_PAN_Y = 50; 
+
+        const empresaConfig = {
+            'Irapuru': { 
+                templateImage: templateIrapuru, 
+                fontFamily: 'Archivo', 
+                textColor: '#202687', 
+                userPhotoPlacement: { x: 110, y: 40, width: 500, height: 500 }, 
+                nomeSetor: { 
+                    y: 515, 
+                    fontSize: 20, 
+                }, 
+                filial: { 
+                    y: 535, 
+                    fontSize: 16, 
+                    weight: 'normal',
+                }  
+            },
+            'EVR': { 
+                templateImage: templateEVR, 
+                fontFamily: 'Barlow', 
+                textColor: '#000000', 
+                userPhotoPlacement: { x: 110, y: 40, width: 500, height: 500 }, 
+                nomeSetor: { 
+                    y: 515, 
+                    fontSize: 20, 
+                },
+                filial: { 
+                    y: 535, 
+                    fontSize: 16, 
+                    weight: 'normal',
+                }
+            }
+        };
+
+        const opcoesSetor = [
+            "Acerto", "Almoxarifado", "Comercial", "Compras", "Comprovantes", "Contabilidade", 
+            "Controladoria", "Direção", "Expedição", "Financeiro", "Fiscal", "Frota", 
+            "Gente e Cultura", "Jurídico", "Licenças", "Logística", "Manutenção", "Marketing", 
+            "Monitoramento", "Operação", "Projetos", "Segurança do Trabalho", "Seguros", "Tecnologia"
+        ].sort();
+
+        const opcoesFilial = [
+            "Betim / MG", "Cabo de Santo Agostinho / PE", "Campo Largo / PR", "Caxias do Sul / RS", 
+            "Curitiba / PR", "Eusébio / CE", "Gravataí / RS", "Itapecerica da Serra / SP", 
+            "Itajubá / MG", "Joinville / SC", "Linhares / ES", "Mafra / SC", "Porto Real / RJ", 
+            "Rio Grande / RS", "Simões Filho / BA", "Sorocaba / SP"
+        ].sort(); 
+
+        function popularDropdown(selectElement, opcoes) {
+            opcoes.forEach(opcaoText => {
+                const optionTag = document.createElement('option');
+                optionTag.value = opcaoText;
+                optionTag.textContent = opcaoText;
+                selectElement.appendChild(optionTag);
+            });
+        }
+
+        popularDropdown(setorSelect, opcoesSetor);
+        popularDropdown(filialSelect, opcoesFilial);
+        
+        function updateUIVisibility(isUserPhotoActive) {
+            if (isUserPhotoActive) {
+                fotoUploadSection.classList.add('visually-hidden-but-takes-space');
+                fotoUploadSection.classList.remove('visible-and-interactive');
+                
+                actionButtonsContainer.classList.remove('visually-hidden-but-takes-space');
+                actionButtonsContainer.classList.add('visible-and-interactive');
+                
+                uploadInstructionText.classList.add('visually-hidden-but-takes-space'); 
+                uploadInstructionText.classList.remove('visible-and-interactive');
+                dragZoomInstruction.classList.remove('visually-hidden-but-takes-space'); 
+                dragZoomInstruction.classList.add('visible-and-interactive'); 
+                canvas.classList.add('interactive');
+            } else {
+                fotoUploadSection.classList.remove('visually-hidden-but-takes-space');
+                fotoUploadSection.classList.add('visible-and-interactive');
+
+                actionButtonsContainer.classList.add('visually-hidden-but-takes-space');
+                actionButtonsContainer.classList.remove('visible-and-interactive');
+                
+                uploadInstructionText.classList.remove('visually-hidden-but-takes-space'); 
+                uploadInstructionText.classList.add('visible-and-interactive');
+                dragZoomInstruction.classList.add('visually-hidden-but-takes-space');
+                dragZoomInstruction.classList.remove('visible-and-interactive');
+                canvas.classList.remove('interactive', 'dragging');
+                canvas.style.cursor = 'default';
+            }
+        }
+
+        function imageLoaded() {
+            console.log(`SUCESSO: Imagem ${this.src.substring(0,100)}... carregada.`);
+            desenharAvatar();
+        }
+        function imageError() {
+            console.error(`ERRO: Falha ao carregar imagem: ${this.src}.`);
+            desenharAvatar(); 
+        }
+
+        templateIrapuru.onload = imageLoaded;
+        templateEVR.onload = imageLoaded;
+        bgImage.onload = imageLoaded; 
+        fotoObjeto.onload = () => {
+            console.log("SUCESSO: Foto do usuário (fotoObjeto) carregada.");
+            photoPanX = 0; photoPanY = 0; photoZoom = 1; 
+            updateUIVisibility(true);
+            desenharAvatar();
+        };
+        templateIrapuru.onerror = imageError;
+        templateEVR.onerror = imageError;
+        bgImage.onerror = () => { 
+            console.error("ERRO: Falha ao carregar imagem de fundo padrão (bg.png).");
+            desenharAvatar(); 
+        };
+        fotoObjeto.onerror = () => {
+            console.error("ERRO: Falha crítica ao carregar a imagem do usuário em fotoObjeto.");
+            fotoObjeto.src = ""; 
+            updateUIVisibility(false);
+            desenharAvatar(); 
+        };
+
+        fotoInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                // Oculta imediatamente a seção de upload para evitar flash do nome do arquivo
+                fotoUploadSection.classList.add('visually-hidden-but-takes-space');
+                fotoUploadSection.classList.remove('visible-and-interactive');
+                uploadInstructionText.classList.add('visually-hidden-but-takes-space'); 
+                uploadInstructionText.classList.remove('visible-and-interactive');
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    fotoObjeto.src = e.target.result; 
+                    // fotoObjeto.onload chamará updateUIVisibility(true) e desenharAvatar()
+                }
+                reader.onerror = (e) => {
+                    console.error("ERRO: FileReader não conseguiu ler o arquivo da foto do usuário.", e);
+                    // Se houver erro no reader, reexibe a seção de upload
+                    updateUIVisibility(false); 
+                }
+                reader.readAsDataURL(file);
+            } else {
+                fotoObjeto.src = ''; 
+                updateUIVisibility(false);
+                desenharAvatar(); 
+            }
+        });
+
+        limparFotoBtn.addEventListener('click', () => {
+            fotoObjeto.src = '';
+            fotoInput.value = null; 
+            updateUIVisibility(false);
+            desenharAvatar();
+        });
+
+        nomeInput.addEventListener('focus', () => { 
+            if (nomeInput.value === NOME_PLACEHOLDER) {
+                nomeInput.value = '';
+                nomeInput.classList.remove('placeholder-text');
+                nomeInput.classList.add('text-gray-900');
+            }
+        });
+        nomeInput.addEventListener('blur', () => { 
+            if (nomeInput.value.trim() === '') {
+                nomeInput.value = NOME_PLACEHOLDER;
+                nomeInput.classList.add('placeholder-text');
+                nomeInput.classList.remove('text-gray-900');
+            }
+        });
+         nomeInput.addEventListener('input', () => {
+            if (nomeInput.value !== NOME_PLACEHOLDER && nomeInput.value.trim() !== '') {
+                nomeInput.classList.remove('placeholder-text');
+                nomeInput.classList.add('text-gray-900');
+            } else if (nomeInput.value.trim() === '') {
+                nomeInput.classList.add('text-gray-900');
+                nomeInput.classList.remove('placeholder-text');
+            }
+            console.log(`Input Event: Campo 'nome' alterado para '${nomeInput.value}'. Chamando desenharAvatar().`);
+            desenharAvatar(); 
+        });
+
+        setorSelect.addEventListener('change', () => {
+            console.log(`Select Event: Campo 'setor' alterado para '${setorSelect.value}'. Chamando desenharAvatar().`);
+            desenharAvatar();
+        });
+        filialSelect.addEventListener('change', () => {
+            console.log(`Select Event: Campo 'filial' alterado para '${filialSelect.value}'. Chamando desenharAvatar().`);
+            desenharAvatar();
+        });
+        
+        const empresaRadios = document.querySelectorAll('input[name="empresa"]');
+        empresaRadios.forEach(radio => {
+            radio.addEventListener('change', (event) => { 
+                console.log(`Troca de EMPRESA para: ${event.target.value}. Chamando desenharAvatar().`);
+                desenharAvatar();
+            });
+        });
+
+        function getSelectedEmpresa() {
+            const checkedRadio = document.querySelector('input[name="empresa"]:checked');
+            return checkedRadio ? checkedRadio.value : "Irapuru"; 
+        }
+        
+        function desenharAvatar(isDownload = false) {
+            const currentEmpresaKey = getSelectedEmpresa(); 
+            console.log(`Iniciando desenharAvatar() para EMPRESA: ${currentEmpresaKey}. Download: ${isDownload}. Timestamp: ${new Date().toLocaleTimeString()}`);
+            
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            const targetWidth = isDownload ? CANVAS_REAL_WIDTH : CANVAS_DISPLAY_WIDTH;
+            const targetHeight = isDownload ? CANVAS_REAL_HEIGHT : CANVAS_DISPLAY_HEIGHT;
+            const scale = targetWidth / CANVAS_REAL_WIDTH; 
+
+            tempCanvas.width = targetWidth;
+            tempCanvas.height = targetHeight;
+            tempCtx.clearRect(0,0, targetWidth, targetHeight); 
+            
+            const config = empresaConfig[currentEmpresaKey];
+            if (!config) {
+                console.error(`Configuração não encontrada para a empresa: ${currentEmpresaKey}`);
+                ctx.clearRect(0,0, canvas.width, canvas.height);
+                ctx.fillStyle = "red"; ctx.font = "12px Arial"; ctx.textAlign = "center";
+                ctx.fillText(`Erro: Config para ${currentEmpresaKey} não encontrada.`, canvas.width/2, canvas.height/2);
+                return null;
+            }
+            
+            const userPhotoLoaded = fotoObjeto.src && fotoObjeto.src !== '#' && fotoObjeto.complete && fotoObjeto.naturalWidth > 0;
+            const bgImageLoaded = bgImage.src && bgImage.complete && bgImage.naturalWidth > 0;
+            const placement = { 
+                x: config.userPhotoPlacement.x * scale,
+                y: config.userPhotoPlacement.y * scale,
+                width: config.userPhotoPlacement.width * scale,
+                height: config.userPhotoPlacement.height * scale
+            };
+
+            let imageToDraw = null;
+            let currentZoom = 1;
+            let currentPanX = 0;
+            let currentPanY = 0;
+
+            if (userPhotoLoaded) {
+                imageToDraw = fotoObjeto;
+                currentZoom = photoZoom;
+                currentPanX = photoPanX;
+                currentPanY = photoPanY;
+            } else if (bgImageLoaded) {
+                imageToDraw = bgImage;
+                currentZoom = BG_IMAGE_DEFAULT_ZOOM; 
+                currentPanX = 0; 
+                currentPanY = BG_IMAGE_DEFAULT_PAN_Y; 
+            }
+
+            if (imageToDraw) {
+                const img = imageToDraw;
+                const imgAspectRatio = img.naturalWidth / img.naturalHeight;
+                const placementAspectRatio = placement.width / placement.height;
+                let renderWidth, renderHeight;
+
+                if (imgAspectRatio > placementAspectRatio) { 
+                    renderHeight = placement.height * currentZoom;
+                    renderWidth = renderHeight * imgAspectRatio;
+                    if (renderWidth < placement.width * currentZoom) { 
+                        renderWidth = placement.width * currentZoom;
+                        renderHeight = renderWidth / imgAspectRatio;
+                    }
+                } else { 
+                    renderWidth = placement.width * currentZoom;
+                    renderHeight = renderWidth / imgAspectRatio;
+                    if (renderHeight < placement.height * currentZoom) { 
+                        renderHeight = placement.height * currentZoom;
+                        renderWidth = renderHeight * imgAspectRatio;
+                    }
+                }
+                let dx = placement.x + (placement.width - renderWidth) / 2 - (currentPanX * (renderWidth / img.naturalWidth));
+                let dy = placement.y + (placement.height - renderHeight) / 2 - (currentPanY * (renderHeight / img.naturalHeight));
+                tempCtx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, dx, dy, renderWidth, renderHeight);
+            }
+            
+            const templateImg = config.templateImage;
+            if (templateImg && templateImg.complete && templateImg.naturalWidth > 0) {
+                tempCtx.drawImage(templateImg, 0, 0, targetWidth, targetHeight);
+            } else {
+                if (!imageToDraw && !isDownload) {
+                    tempCtx.fillStyle = '#e0e0e0';
+                    tempCtx.fillRect(0,0, targetWidth, targetHeight);
+                    tempCtx.fillStyle = 'black'; tempCtx.textAlign = 'center';
+                    tempCtx.font = `${14 * scale}px Inter`;
+                    wrapText(tempCtx, `Template ${currentEmpresaKey} não carregou. Verifique o arquivo.`, targetWidth / 2, targetHeight / 2, targetWidth * 0.9, 18 * scale);
+                }
+            }
+            
+            tempCtx.fillStyle = config.textColor; 
+            tempCtx.textBaseline = 'middle';
+            const nomeAtual = nomeInput.value.trim(); 
+            const setorAtual = setorSelect.value; 
+            const filialAtual = filialSelect.value; 
+            const desenharNome = nomeAtual !== NOME_PLACEHOLDER && nomeAtual !== "";
+            const desenharSetor = setorAtual !== "" && setorAtual !== "(Selecione Aqui)"; 
+            const desenharFilial = filialAtual !== "" && filialAtual !== "(Selecione Aqui)"; 
+            let nomeParaDesenhar = desenharNome ? nomeAtual : "";
+            let setorParaDesenhar = desenharSetor ? setorAtual : "";
+
+            if (desenharNome || desenharSetor) { 
+                tempCtx.textAlign = 'center'; 
+                const yPosNomeSetor = config.nomeSetor.y * scale;
+                const fontSizeNomeSetor = config.nomeSetor.fontSize * scale;
+                if (desenharNome && desenharSetor) {
+                    tempCtx.font = `bold ${fontSizeNomeSetor}px ${config.fontFamily}`;
+                    const nomeWidth = tempCtx.measureText(nomeParaDesenhar).width;
+                    tempCtx.font = `normal ${fontSizeNomeSetor}px ${config.fontFamily}`;
+                    const separador = " - ";
+                    const separadorWidth = tempCtx.measureText(separador).width;
+                    const setorWidth = tempCtx.measureText(setorParaDesenhar).width;
+                    const totalWidth = nomeWidth + separadorWidth + setorWidth;
+                    let currentX = (targetWidth - totalWidth) / 2;
+                    tempCtx.textAlign = 'left'; 
+                    tempCtx.font = `bold ${fontSizeNomeSetor}px ${config.fontFamily}`;
+                    tempCtx.fillText(nomeParaDesenhar, currentX, yPosNomeSetor);
+                    currentX += nomeWidth;
+                    tempCtx.font = `normal ${fontSizeNomeSetor}px ${config.fontFamily}`;
+                    tempCtx.fillText(separador, currentX, yPosNomeSetor);
+                    currentX += separadorWidth;
+                    tempCtx.fillText(setorParaDesenhar, currentX, yPosNomeSetor);
+                } else if (desenharNome) { 
+                    tempCtx.font = `bold ${fontSizeNomeSetor}px ${config.fontFamily}`;
+                    tempCtx.fillText(nomeParaDesenhar, targetWidth / 2, yPosNomeSetor);
+                } else if (desenharSetor) { 
+                    tempCtx.font = `normal ${fontSizeNomeSetor}px ${config.fontFamily}`;
+                    tempCtx.fillText(setorParaDesenhar, targetWidth / 2, yPosNomeSetor);
+                }
+            }
+
+            if (desenharFilial) {
+                const textoFilialCompleto = `unidade ${filialAtual}`; 
+                tempCtx.font = `${config.filial.weight} ${config.filial.fontSize * scale}px ${config.fontFamily}`;
+                tempCtx.textAlign = 'center'; 
+                tempCtx.fillText(textoFilialCompleto, targetWidth / 2, config.filial.y * scale);
+            }
+            
+            if (!isDownload) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+            }
+            return tempCanvas;
+        }
+
+        function wrapText(context, text, x, y, maxWidth, lineHeight) {
+            const words = text.split(' '); let line = ''; const lines = [];
+            for(let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = context.measureText(testLine); const testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) { lines.push(line); line = words[n] + ' '; } else { line = testLine; }
+            }
+            lines.push(line);
+            let currentY = y - (lines.length -1) * lineHeight / 2; 
+            lines.forEach(ln => { context.fillText(ln.trim(), x, currentY); currentY += lineHeight; });
+        }
+
+        function getEventCoordinates(e, canvasElement) {
+            const rect = canvasElement.getBoundingClientRect();
+            if (e.touches && e.touches.length > 0) { 
+                return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+            }
+            return { x: e.offsetX, y: e.offsetY }; 
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const userPhotoLoaded = fotoObjeto.src && fotoObjeto.src !== '#' && fotoObjeto.complete && fotoObjeto.naturalWidth > 0;
+            if (userPhotoLoaded) { 
+                isDraggingPhoto = true;
+                const coords = getEventCoordinates(e, canvas);
+                dragStartX = coords.x; dragStartY = coords.y;
+                initialPanX = photoPanX; initialPanY = photoPanY;
+                canvas.classList.add('dragging'); canvas.classList.remove('interactive');
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDraggingPhoto) { 
+                const coords = getEventCoordinates(e, canvas);
+                const dxMouse = coords.x - dragStartX;
+                const dyMouse = coords.y - dragStartY;
+                const currentZoom = photoZoom || 1; 
+                const panSensitivity = 1; 
+                photoPanX = initialPanX - (dxMouse * panSensitivity / currentZoom);
+                photoPanY = initialPanY - (dyMouse * panSensitivity / currentZoom);
+                desenharAvatar();
+            }
+        });
+
+        function endDrag() {
+            if (isDraggingPhoto) {
+                isDraggingPhoto = false;
+                canvas.classList.remove('dragging');
+                 const userPhotoLoaded = fotoObjeto.src && fotoObjeto.src !== '#' && fotoObjeto.complete && fotoObjeto.naturalWidth > 0;
+                if (userPhotoLoaded) {
+                    canvas.classList.add('interactive');
+                }
+            }
+            lastTouchDistance = null; 
+        }
+        canvas.addEventListener('mouseup', endDrag);
+        canvas.addEventListener('mouseleave', endDrag);
+
+        canvas.addEventListener('wheel', (e) => {
+            const userPhotoLoaded = fotoObjeto.src && fotoObjeto.src !== '#' && fotoObjeto.complete && fotoObjeto.naturalWidth > 0;
+            if (userPhotoLoaded) { 
+                e.preventDefault();
+                const zoomIntensity = 0.05; 
+                const direction = e.deltaY < 0 ? 1 : -1; 
+                photoZoom += direction * zoomIntensity;
+                photoZoom = Math.max(0.1, Math.min(photoZoom, 10)); 
+                desenharAvatar();
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchstart', (e) => {
+            const userPhotoLoaded = fotoObjeto.src && fotoObjeto.src !== '#' && fotoObjeto.complete && fotoObjeto.naturalWidth > 0;
+            if (userPhotoLoaded) {
+                if (e.touches.length === 1) { 
+                    e.preventDefault(); 
+                    isDraggingPhoto = true;
+                    const coords = getEventCoordinates(e, canvas);
+                    dragStartX = coords.x; dragStartY = coords.y;
+                    initialPanX = photoPanX; initialPanY = photoPanY;
+                    canvas.classList.add('dragging'); canvas.classList.remove('interactive');
+                } else if (e.touches.length === 2) { 
+                    e.preventDefault(); 
+                    isDraggingPhoto = false; 
+                    const dxTouch = e.touches[0].clientX - e.touches[1].clientX;
+                    const dyTouch = e.touches[0].clientY - e.touches[1].clientY;
+                    lastTouchDistance = Math.sqrt(dxTouch * dxTouch + dyTouch * dyTouch);
+                }
+            }
+        }, { passive: false }); 
+
+        canvas.addEventListener('touchmove', (e) => {
+             const userPhotoLoaded = fotoObjeto.src && fotoObjeto.src !== '#' && fotoObjeto.complete && fotoObjeto.naturalWidth > 0;
+            if (userPhotoLoaded) {
+                if (isDraggingPhoto && e.touches.length === 1) { 
+                    e.preventDefault();
+                    const coords = getEventCoordinates(e, canvas);
+                    const dxMouse = coords.x - dragStartX;
+                    const dyMouse = coords.y - dragStartY;
+                    const currentZoom = photoZoom || 1;
+                    const panSensitivity = 1;
+                    photoPanX = initialPanX - (dxMouse * panSensitivity / currentZoom);
+                    photoPanY = initialPanY - (dyMouse * panSensitivity / currentZoom);
+                    desenharAvatar();
+                } else if (e.touches.length === 2 && lastTouchDistance) { 
+                    e.preventDefault();
+                    const dxTouch = e.touches[0].clientX - e.touches[1].clientX;
+                    const dyTouch = e.touches[0].clientY - e.touches[1].clientY;
+                    const currentDistance = Math.sqrt(dxTouch * dxTouch + dyTouch * dyTouch);
+                    const zoomFactor = currentDistance / lastTouchDistance;
+                    photoZoom *= zoomFactor;
+                    photoZoom = Math.max(0.1, Math.min(photoZoom, 10)); 
+                    lastTouchDistance = currentDistance;
+                    desenharAvatar();
+                }
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', endDrag);
+        canvas.addEventListener('touchcancel', endDrag);
+
+        baixarPNGButton.addEventListener('click', () => {
+            const finalCanvas = desenharAvatar(true);
+            if (finalCanvas && typeof finalCanvas.toDataURL === 'function') {
+                try {
+                    const dataURL = finalCanvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.href = dataURL;
+                    const nomeArquivoBase = nomeInput.value.trim().toLowerCase().replace(/\s+/g, '-') || 'avatar';
+                    const empresaNome = getSelectedEmpresa().toLowerCase();
+                    link.download = `avatar-${nomeArquivoBase}-${empresaNome}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (error) {
+                    console.error("ERRO ao gerar Data URL ou iniciar download:", error);
+                }
+            } else {
+                console.error("ERRO: finalCanvas não é um elemento canvas válido ou não foi retornado por desenharAvatar(true).");
+            }
+        });
+        
+         window.addEventListener('load', () => {
+            updateUIVisibility(false); 
+            desenharAvatar(); 
+        });
+    </script>
+</body>
+</html>
