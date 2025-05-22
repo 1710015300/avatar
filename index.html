@@ -361,7 +361,14 @@
 
             tempCanvas.width = targetWidth;
             tempCanvas.height = targetHeight;
-            tempCtx.clearRect(0,0, targetWidth, targetHeight); 
+            tempCtx.clearRect(0,0, targetWidth, targetHeight);
+
+            // Melhorar qualidade da imagem no download
+            if (isDownload) {
+                tempCtx.imageSmoothingEnabled = true;
+                tempCtx.imageSmoothingQuality = 'high';
+                console.log("Qualidade de suavização da imagem para download definida como 'high'.");
+            }
             
             const config = empresaConfig[currentEmpresaKey];
             if (!config) {
